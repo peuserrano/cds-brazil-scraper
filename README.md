@@ -1,45 +1,74 @@
 # CDS Brazil Data Scraper
 
-Este projeto consiste em um scraper para coletar dados históricos de Credit Default Swaps (CDS) do Brasil a partir do site Investing.com. O objetivo é fornecer uma base de dados consolidada para análise de risco soberano e outras aplicações financeiras.
+![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+Scraper para coletar dados históricos de Credit Default Swaps (CDS) do Brasil a partir do Investing.com, com análise exploratória integrada.
 
 ## Funcionalidades
 
-- Coleta dados de diferentes prazos de CDS (1 ano, 2 anos, 5 anos, etc.).
-- Combina os dados coletados em um único DataFrame para fácil análise.
-- Tratamento de erros para lidar com possíveis mudanças na estrutura da página ou problemas de conexão.
+- Coleta dados de múltiplos prazos de CDS (1, 2, 3, 4, 5, 7 e 10 anos)
+- Combina os dados em um único DataFrame indexado por data
+- Gera gráficos de séries temporais e matriz de correlação
+- Opção de salvar gráficos em arquivo via `--save-plots`
+
+## Pré-requisitos
+
+- Python >= 3.10
+- pip
 
 ## Instalação
 
-1. Clone o repositório:
+```bash
+git clone https://github.com/peuserrano/cds-brazil-scraper.git
+cd cds-brazil-scraper
 
-   ```bash
-   git clone https://github.com/peuserrano/cds-brazil-scraper.git
-   cd cds-brazil-scraper
+python -m venv .venv
+# Linux/macOS
+source .venv/bin/activate
+# Windows
+.venv\Scripts\activate
 
-2. Instale as dependências:
+pip install -r requirements.txt
+```
 
-   ```bash
-   pip install -r requirements.txt
+## Uso
 
-## USO
+Coleta todos os prazos e exibe os gráficos na tela:
 
-1. No script principal, você pode ajustar os prazos de CDS que deseja coletar e iniciar o processo:
+```bash
+python main.py
+```
 
-   ```bash
-   if __name__ == "__main__":
-       headers = {'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36'}
-       lista_cds = ['cds-1-year', 'cds-2-years', 'cds-3-years', 'cds-4-years', 'cds-5-years', 'cds-7-years', 'cds-10-years']
-   
-       scraper = CDSDataScraper(headers)
-   
-       for ano_cds in lista_cds:
-           scraper.fetch_data(ano_cds)
-   
-       base_cds = scraper.get_combined_data()
-       print(base_cds)
+Coleta apenas os prazos de 1 e 5 anos:
+
+```bash
+python main.py --tenors cds-1-year cds-5-years
+```
+
+Coleta todos os prazos e salva os gráficos em `output/`:
+
+```bash
+python main.py --save-plots
+```
+
+## Desenvolvimento
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+## Limitações
+
+- O Investing.com pode bloquear requisições automatizadas. Se a coleta falhar com erro HTTP 403, o site pode ter alterado sua política de acesso.
+- A estrutura da tabela HTML pode mudar sem aviso prévio, exigindo atualização do parser.
+- Este projeto é para fins educacionais e de pesquisa. Verifique os termos de uso do Investing.com antes de utilizar os dados.
 
 ## Contribuições
-Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e enviar pull requests.
+
+Contribuições são bem-vindas. Abra uma issue ou envie um pull request.
 
 ## Licença
-Este projeto está licenciado sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
+
+MIT — veja [LICENSE](LICENSE).

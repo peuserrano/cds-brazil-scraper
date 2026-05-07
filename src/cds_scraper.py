@@ -1,78 +1,60 @@
-import pandas as pd
-from urllib.request import Request, urlopen
-from bs4 import BeautifulSoup
+import logging
 import time
 
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
+
+BASE_URL = "https://br.investing.com/rates-bonds/brazil-{tenor}-usd-historical-data"
+
+
 class CDSDataScraper:
+    """Coleta dados históricos de CDS do Brasil a partir do Investing.com."""
 
-    """
-    Uma classe para fazer scraping de dados de CDS do Brasil a partir do site Investing.com.
-
-    Atributos:
-    ----------
-    headers : dict
-        Cabeçalhos HTTP para emular uma requisição feita por um navegador.
-    lista_dfs : list
-        Lista que armazena DataFrames de CDS para diferentes prazos.
-
-    Métodos:
-    --------
-    fetch_data(ano_cds):
-        Faz a requisição dos dados para o prazo de CDS especificado.
-        
-    get_combined_data():
-        Retorna um DataFrame combinando todos os prazos de CDS coletados.
-    """
-    
-    def __init__(self, headers):
-        """
-        Inicializa o scraper com os cabeçalhos HTTP fornecidos e uma lista vazia para armazenar DataFrames
-
-        Args:
-            headers (dict): Dicionário contendo os cabeçalhos HTTP para as requisições
-        """
+    def __init__(self, headers: dict) -> None:
         self.headers = headers
-        self.lista_dfs = []
+        self._dfs: list[pd.DataFrame] = []
 
-    def fetch_data(self, ano_cds):
-        """
-        Faz  a requisição e coleta os dados de CDS com as durações especificadas
+    def fetch_data(self, tenor: str) -> None:
+        """Busca e armazena os dados do CDS para o prazo especificado.
 
         Args:
-            ano_cds(str): String representando o CDS a ser coletado (ex: 'cds-5-years').
+            tenor: Identificador do prazo (ex: 'cds-5-years').
         """
+        url = BASE_URL.format(tenor=tenor)
 
-        url = f'https://br.investing.com/rates-bonds/brazil-{ano_cds}-usd-historical-data'
-        req = Request(url, headers=self.headers)
-        
         try:
-            page = urlopen(req)
-            soup = BeautifulSoup(page, features='lxml')
-            
-            table = soup.find_all("table")[0]
-            df_cds = pd.read_html(str(table))[0][['Último', 'Data']]
-            df_cds = df_cds.set_index("Data")
-            df_cds.index = pd.to_datetime(df_cds.index, format="%d.%m.%Y")
-            df_cds.columns = [ano_cds]
-            
-            self.lista_dfs.append(df_cds)
-        
-        except Exception as e:
-            print(f'Erro ao coletar dados para {ano_cds}: {e}')
-            return None
-        
-        time.sleep(2) # Pausa para evitar sobrecarga no servidor
+            response = requests.get(url, headers=self.headers, timeout=30)
+            response.raise_for_status()
 
-    def get_combined_data(self):
-        """
-        Combina todos os DataFrames coletados em um único DataFrame.
+            soup = BeautifulSoup(response.text, features="lxml")
+            table = soup.find_all("table")[0]
+
+            df = pd.read_html(str(table))[0][["Último", "Data"]]
+            df = df.set_index("Data")
+            df.index = pd.to_datetime(df.index, format="%d.%m.%Y")
+            df.columns = [tenor]
+
+            self._dfs.append(df)
+            logger.info("Dados coletados com sucesso para %s", tenor)
+
+        except requests.HTTPError as e:
+            logger.error("Erro HTTP ao coletar %s: %s", tenor, e)
+        except Exception as e:
+            logger.error("Erro inesperado ao coletar %s: %s", tenor, e)
+
+        time.sleep(2)
+
+    def get_combined_data(self) -> pd.DataFrame:
+        """Combina todos os DataFrames coletados em um único DataFrame.
 
         Returns:
-            pd.DataFrame: DataFrame contendo todos os dados de CDS coletados.
+            DataFrame com todos os prazos de CDS coletados, ou vazio se nenhum.
         """
-        if self.lista_dfs:
-            return pd.concat(self.lista_dfs, axis=1)
-        else:
-            print("Nenhum dado foi coletado.")
+        if not self._dfs:
+            logger.warning("Nenhum dado foi coletado.")
             return pd.DataFrame()
 
+        return pd.concat(self._dfs, axis=1)
